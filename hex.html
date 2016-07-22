@@ -1,0 +1,260 @@
+<html>
+
+  <head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+  <script>
+
+    function toHex(d) { return  ("0"+(Number(d).toString(16))).slice(-2).toUpperCase() }
+    function arrToColor(arr) {
+      var color = "#";
+      for (var i = 0; i < 3; i++) {
+        if (arr[i] > 0xff)
+          color += toHex(0xff);
+        else if (arr[i] < 0x0)
+          color += toHex(0x0);
+        else
+          color += toHex(arr[i]);
+      }
+      return color;
+    }
+    function colorToArr(color) {
+      return [parseInt(color.substr(1,2),16),
+      parseInt(color.substr(3,2),16),
+      parseInt(color.substr(5,2),16)];
+    }
+    function HSVtoRGB(h, s, v) {
+        var r, g, b, i, f, p, q, t;
+        if (arguments.length === 1) {
+          s = h.s, v = h.v, h = h.h;
+        }
+        i = Math.floor(h * 6);
+        f = h * 6 - i;
+        p = v * (1 - s);
+        q = v * (1 - f * s);
+        t = v * (1 - (1 - f) * s);
+        switch (i % 6) {
+          case 0: r = v, g = t, b = p; break;
+          case 1: r = q, g = v, b = p; break;
+          case 2: r = p, g = v, b = t; break;
+          case 3: r = p, g = q, b = v; break;
+          case 4: r = t, g = p, b = v; break;
+          case 5: r = v, g = p, b = q; break;
+        }
+        return {
+          r: Math.round(r * 255),
+          g: Math.round(g * 255),
+          b: Math.round(b * 255)
+        };
+    }
+
+    var distance;
+    var offset;
+    var xMax;
+    var yMax;
+    var step = 0;
+    var spots = Array();
+    var canvas;
+
+    var radius = 40;
+    var padding = 0;
+    var interval = 50;
+    var rate = 5;
+    var prob = 1.0;
+    var variance = 100;
+    var amp = 100;
+
+    var colorOffset = 0.8;
+    var baseColor;
+    var colorRate = 0.05;
+
+    var newRadius = radius;
+    var newPadding = padding;
+
+    function calculateSpacing() {
+      distance = 2*radius + padding;
+      offset = Math.sqrt(3)*distance/2;
+      xMax = 1 + Math.ceil(window.innerWidth/distance);
+      yMax = 1 + Math.ceil(window.innerHeight/offset);
+      spots = getSpots(prob)
+    }
+
+    function drawCircles() {
+      if (newRadius != radius) {
+        radius = parseInt((newRadius+radius)/2);
+        calculateSpacing();
+      }
+      if (newPadding != padding) {
+        padding = parseInt((newPadding+padding)/2);
+        calculateSpacing();
+      }
+      var colors = getColors(baseColor, spots);
+      tileCircles(canvas, colors, radius, padding);
+    }
+
+    function onLoad() {
+      canvas = document.getElementById("mainCanvas");
+
+      canvas.height = window.innerHeight
+      canvas.width = window.innerWidth
+
+      //calculateSpacing();
+        distance = 2*radius + padding;
+        offset = Math.sqrt(3)*distance/2;
+        xMax = 1 + Math.ceil(window.innerWidth/distance);
+        yMax = 1 + Math.ceil(window.innerHeight/offset);
+
+      var rgb = HSVtoRGB(colorOffset, 1.0, 0.5);
+      baseColor = [rgb['r'], rgb['g'], rgb['b']];
+
+      spots = getSpots(prob);
+      drawCircles();
+      step = 1;
+      setInterval(function() {
+        drawCircles();
+        //var colors = getColors(baseColor, spots);
+        //tileCircles(canvas, colors, radius, padding);
+        if (step > 10000)
+          step = 0;
+        else
+          step++;
+      }, interval);
+      
+    }
+
+    $(document).keydown(function(e) {
+      switch(e.which) {
+        case 32: // Space bar
+          if (colorOffset > 1.0)
+            colorOffset = 0.0;
+          else
+            colorOffset += colorRate;
+          var rgb = HSVtoRGB(colorOffset, 1.0, 0.5);
+          baseColor = [rgb['r'], rgb['g'], rgb['b']];
+        break;
+        case 38: // Up arrow
+          if (rate <= 1.0)
+            rate = 1.0;
+          else {
+            rate -= 1;
+            step *= rate/(rate+1);
+          }
+        break;
+        case 40: // Down arrow
+          if (rate >= 20)
+            rate = 20;
+          else {
+            rate += 1;
+            step *= rate/(rate-1);
+          }
+        break;
+        case 33: // Page up
+          if (newPadding >= 50)
+            newPadding = 50;
+          else {
+            newPadding += 5;
+            calculateSpacing();
+          }
+        break;
+        case 34: // Page down
+          if (newPadding <= 0)
+            newPadding = 0;
+          else {
+            newPadding -= 5;
+            calculateSpacing();
+          }
+        break;
+        case 39: // Right arrow
+          if (newRadius >= 100)
+            newRadius = 100;
+          else {
+            newRadius += 5.5;
+            //calculateSpacing();
+          }
+        break;
+        case 37: // Left arrow
+          if (newRadius <= 10)
+            newRadius = 10;
+          else {
+            newRadius -= 5;
+            //calculateSpacing();
+          }
+        break;
+        default:;
+
+      }
+    });
+
+    
+
+    function getSpots(prob) {
+      var newSpots = Array();
+      for (var i = 0; i < xMax; i++) {
+        var row = Array();
+        for (var j = 0; j < yMax; j++) {
+          if (spots[i] == undefined || spots[i][j] == undefined) {
+            var spot = Array()
+            if (Math.random() < prob)
+              spot.push(Math.random());
+            else
+              spot.push(0);
+            spot.push(parseInt((Math.random()-0.5)*variance));
+            spot.push(parseInt((Math.random()-0.5)*2*Math.PI));
+          } else {
+            spot = spots[i][j];
+          }
+          row.push(spot);
+        }
+        newSpots.push(row);
+      }
+      return newSpots;
+    }
+
+    function getColors(base, spots) {
+      var colors = Array();
+      for (var i = 0; i < xMax; i++) {
+        var row = Array();
+        for (var j = 0; j < yMax; j++) {
+          //console.log(i + ", " + j)
+          var delta = spots[i][j][1]
+            + parseInt(spots[i][j][0]
+                * amp*Math.sin(spots[i][j][2]+step/rate));
+          row.push(arrToColor([base[0]+delta,base[1]+delta,base[2]+delta]));
+        }
+        colors.push(row);
+      }
+      return colors;
+    }
+
+    function tileCircles(canvas, colors, radius, padding) { 
+      var startY = radius + padding - offset;
+      var startX = radius + padding - distance;
+      var ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      var x;
+      var y;
+      var paths = Array();
+      for ( var i = 0; i-1 < window.innerHeight/offset; i++) {
+        y = startY + i*offset;
+        for ( var j = 0; j-1 < window.innerWidth/distance; j++) {
+          ctx.beginPath();
+          x = startX + j*distance;
+          if (i % 2 == 1 || i == -1) x += distance/2;
+          ctx.arc(x,y,radius,0,2*Math.PI);
+          ///console.log("Fill: " + j + ", " + i);
+          ctx.fillStyle = colors[j][i];
+          //ctx.fillStyle = "purple";
+          ctx.fill();
+          paths += ctx;
+        }
+      }
+    }
+    
+  </script>
+  </head>
+
+  <body id="body" onload="onLoad()" style="margin:0;background-color:black">
+    <canvas id="mainCanvas" width="100" style="position:absolute">
+    </canvas>
+  </body>
+</html>
