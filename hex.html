@@ -167,17 +167,18 @@
           if (newRadius >= 100)
             newRadius = 100;
           else {
-            newRadius += 5.5;
+            newRadius += 5;
             //calculateSpacing();
           }
         break;
         case 37: // Left arrow
-          if (newRadius <= 10)
-            newRadius = 10;
+          if (newRadius <= 5)
+            newRadius = 5;
           else {
             newRadius -= 5;
             //calculateSpacing();
           }
+          console.log(newRadius + ", " + radius);
         break;
         default:;
 
